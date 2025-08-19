@@ -1,1 +1,103 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Мой ГПТ — Учебная версия</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body{font-family:system-ui,-apple-system,Arial,sans-serif;margin:0;padding:16px;background:#f7f7f7;color:#222;}
+    header{margin-bottom:12px}
+    h1{font-size:1.4rem;margin:0 0 8px}
+    .row{display:flex;gap:8px;flex-wrap:wrap}
+    input,button,textarea{font-size:1rem;padding:8px}
+    input,textarea{flex:1}
+    button{cursor:pointer}
+    pre{background:#fff;border:1px solid #ddd;padding:10px;white-space:pre-wrap;margin-top:10px}
+    .note{color:#666;font-size:.9rem}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Мой ГПТ — Учебная версия</h1>
+  <div class="note">Работает на всех ОС. Для очень старых браузеров есть XHR-фолбэк.</div>
+</header>
 
+<section>
+  <h3>Поиск по локальным чатам</h3>
+  <div class="row">
+    <input id="q" placeholder="Введите вопрос для поиска по .txt">
+    <button id="ask">Задать вопрос</button>
+  </div>
+  <pre id="out"></pre>
+</section>
+
+<section style="margin-top:20px">
+  <h3>Агент (многошаговая логика)</h3>
+  <div class="row">
+    <input id="goal" placeholder="Цель агента (можно математику или обычный вопрос)">
+    <button id="run">Запустить агента</button>
+  </div>
+  <pre id="agentOut"></pre>
+</section>
+
+<script>
+// Универсальная отправка JSON: fetch → XHR фолбэк (для старых браузеров)
+function postJSON(url, data){
+  if (window.fetch) {
+    return fetch(url, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(data)
+    }).then(r=>r.json());
+  }
+  // XHR fallback
+  return new Promise(function(resolve,reject){
+    var xhr=new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type','application/json');
+    xhr.onreadystatechange=function(){
+      if(xhr.readyState===4){
+        try{ resolve(JSON.parse(xhr.responseText)); }
+        catch(e){ reject(e); }
+      }
+    };
+    xhr.onerror=function(e){ reject(e); };
+    xhr.send(JSON.stringify(data));
+  });
+}
+
+document.getElementById('ask').onclick = async function(){
+  var q = document.getElementById('q').value.trim();
+  var out = document.getElementById('out');
+  if(!q){ alert('Введите текст'); return; }
+  out.textContent = 'Ищу...';
+  try{
+    var data = await postJSON('/api/question', { question: q });
+    if(data.matches && data.matches.length){
+      out.textContent = data.matches.map(m => m.file+' [стр '+m.line+']: '+m.text).join('\n');
+    } else {
+      out.textContent = 'Совпадений не найдено.';
+    }
+  }catch(e){
+    out.textContent = 'Ошибка: '+e;
+  }
+};
+
+document.getElementById('run').onclick = async function(){
+  var goal = document.getElementById('goal').value.trim();
+  var out = document.getElementById('agentOut');
+  if(!goal){ alert('Введите цель'); return; }
+  out.textContent = 'Агент думает...';
+  try{
+    var data = await postJSON('/api/agent', { goal: goal, maxSteps: 3 });
+    var stepsTxt = (data.transcript||[]).map(s =>
+      '#'+s.step+' → '+s.decision.tool+'\ninput='+s.decision.input+'\nobs='+JSON.stringify(s.observation)
+    ).join('\n\n');
+    out.textContent = 'Ответ:\n'+data.answer+'\n\nШаги:\n'+stepsTxt+'\n\nРежим: '+data.llm;
+  }catch(e){
+    out.textContent = 'Ошибка: '+e;
+  }
+};
+</script>
+</body>
+</html>
