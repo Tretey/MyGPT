@@ -1,0 +1,19 @@
+{
+  "name": "mygpt",
+  "version": "1.0.0",
+  "description": "Учебный кроссплатформенный агент ИИ (Мой ГПТ)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "mathjs": "^12.4.2"
+  }
+}
